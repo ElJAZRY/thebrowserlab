@@ -21,23 +21,42 @@ export async function createSyntheticDataZip(
   
   // Add images
   for (const image of images) {
-    // Convert data URL to blob
-    const dataUrl = image.dataUrl;
-    const byteString = atob(dataUrl.split(',')[1]);
-    const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i);
+    try {
+      // Convert data URL to blob
+      const dataUrl = image.dataUrl;
+      
+      // Skip invalid data URLs
+      if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+        console.warn(`Skipping invalid image data for ${image.id}`);
+        continue;
+      }
+      
+      const byteString = atob(dataUrl.split(',')[1]);
+      const mimeString = dataUrl.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      
+      const blob = new Blob([ab], { type: mimeString });
+      imagesFolder.file(`${image.id}.png`, blob);
+      
+      console.log(`Added image ${image.id} to zip (${blob.size} bytes)`);
+    } catch (error) {
+      console.error(`Error processing image ${image.id}:`, error);
     }
-    
-    const blob = new Blob([ab], { type: mimeString });
-    imagesFolder.file(`${image.id}.png`, blob);
   }
   
   // Generate zip file
-  return await zip.generateAsync({ type: 'blob' });
+  return await zip.generateAsync({ 
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: {
+      level: 6
+    }
+  });
 }
 
 /**
@@ -52,17 +71,23 @@ export async function downloadSyntheticDataZip(
   filename: string = 'synthetic_data.zip'
 ): Promise<void> {
   try {
+    console.log(`Creating zip with ${images.length} images...`);
     const blob = await createSyntheticDataZip(images, annotationsJson);
+    console.log(`Zip created successfully (${blob.size} bytes)`);
     
     // Create download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     
     // Clean up
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+    }, 100);
   } catch (error) {
     console.error('Error creating zip file:', error);
     throw error;
