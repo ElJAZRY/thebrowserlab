@@ -25,7 +25,8 @@
     "three": "^0.168.0",
     "@mkkellogg/gaussian-splats-3d": "^0.3.8",
     "zustand": "^4.5.2", 
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
