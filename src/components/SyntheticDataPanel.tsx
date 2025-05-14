@@ -9,5 +9,16 @@ import {
 } from 'lucide-react';
 import * as THREE from 'three';
 
-// Rest of the file remains unchanged
-[... file content continues unchanged ...]
+interface SyntheticDataPanelProps {
+  className?: string;
+}
+
+export const SyntheticDataPanel: React.FC<SyntheticDataPanelProps> = ({ className }) => {
+  return (
+    <div className={cn("p-4", className)}>
+      {/* Panel content will be implemented as needed */}
+    </div>
+  );
+};
+
+export default SyntheticDataPanel;
