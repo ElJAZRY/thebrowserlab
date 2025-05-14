@@ -10,12 +10,14 @@ import { useEditorStore } from './store/editorStore';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { CodePanel } from './components/CodePanel';
 import { AnnotationPanel } from './components/AnnotationPanel';
+import { SyntheticDataPanel } from './components/SyntheticDataPanel';
 
 function App() {
   useKeyboardControls();
   const hasSavedScene = useEditorStore((state) => state.hasSavedScene);
   const loadScene = useEditorStore((state) => state.loadScene);
   const hasInitialized = useEditorStore((state) => state.hasInitialized);
+  const [showSyntheticDataPanel, setShowSyntheticDataPanel] = React.useState(false);
 
   // Auto-load saved scene on startup
   useEffect(() => {
@@ -47,6 +49,20 @@ function App() {
         <PropertiesPanel />
       </div>
       <AnnotationPanel />
+      {showSyntheticDataPanel && (
+        <SyntheticDataPanel />
+      )}
+      
+      {/* Toggle button for Synthetic Data Panel */}
+      <button
+        onClick={() => setShowSyntheticDataPanel(!showSyntheticDataPanel)}
+        className="absolute bottom-20 right-3 z-50 flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-md border border-blue-500/20"
+      >
+        <Cpu className="w-4 h-4" />
+        <span className="text-xs font-medium">
+          {showSyntheticDataPanel ? 'Hide Synthetic Data' : 'Synthetic Data'}
+        </span>
+      </button>
     </div>
     </ErrorBoundary>
   );
