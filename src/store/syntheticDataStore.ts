@@ -84,10 +84,10 @@ const DEFAULT_CONFIG: SyntheticDataConfig = {
     resolution: { width: 1024, height: 1024 }
   },
   generation: {
-    samples: 5,
+    samples: 100,
     outputFormat: 'COCO',
-    includeDepthMaps: false,
-    includeSegmentationMaps: false,
+    includeDepthMaps: true,
+    includeSegmentationMaps: true,
     includeBoundingBoxes: true,
     includeKeypoints: false
   }
