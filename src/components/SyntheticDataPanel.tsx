@@ -5,7 +5,7 @@ import { useAnnotationStore } from '../store/annotationStore';
 import { 
   Camera, Database, Layers, Shuffle, Box, Sun, Image, 
   Grid, Download, Play, Pause, Settings, ChevronDown, ChevronRight,
-  Tag, Sliders, Aperture, Repeat, Cpu
+  Tag, Sliders, Aperture, Repeat, Cpu, Plus, X
 } from 'lucide-react';
 import * as THREE from 'three';
 
@@ -382,34 +382,6 @@ export function SyntheticDataPanel() {
     return annotations;
   };
   
-  const exportAnnotations = (data: any[], format: string) => {
-    let exportData;
-    
-    switch (format) {
-      case 'COCO':
-        exportData = formatAsCOCO(data);
-        break;
-      case 'PASCAL_VOC':
-        exportData = formatAsPascalVOC(data);
-        break;
-      case 'YOLO':
-        exportData = formatAsYOLO(data);
-        break;
-      default:
-        exportData = data;
-    }
-    
-    // Create a downloadable JSON file
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `synthetic_data_${format.toLowerCase()}.json`;
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-  };
-  
   const formatAsCOCO = (data: any[]) => {
     // Create COCO format structure
     const images = [];
@@ -524,6 +496,34 @@ export function SyntheticDataPanel() {
         })
       }))
     };
+  };
+  
+  const exportAnnotations = (data: any[], format: string) => {
+    let exportData;
+    
+    switch (format) {
+      case 'COCO':
+        exportData = formatAsCOCO(data);
+        break;
+      case 'PASCAL_VOC':
+        exportData = formatAsPascalVOC(data);
+        break;
+      case 'YOLO':
+        exportData = formatAsYOLO(data);
+        break;
+      default:
+        exportData = data;
+    }
+    
+    // Create a downloadable JSON file
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `synthetic_data_${format.toLowerCase()}.json`;
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
   };
   
   const handleImportConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
