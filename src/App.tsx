@@ -6,19 +6,20 @@ import PropertiesPanel from './components/PropertiesPanel';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import SceneHierarchy from './components/SceneHierarchy';
 import Timeline from './components/Timeline';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useEditorStore } from './store/editorStore';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { CodePanel } from './components/CodePanel';
 import { AnnotationPanel } from './components/AnnotationPanel';
 import { SyntheticDataPanel } from './components/SyntheticDataPanel';
+import { ChatInterface } from './components/ChatInterface';
 
 function App() {
   useKeyboardControls();
   const hasSavedScene = useEditorStore((state) => state.hasSavedScene);
   const loadScene = useEditorStore((state) => state.loadScene);
   const hasInitialized = useEditorStore((state) => state.hasInitialized);
-  const [showSyntheticDataPanel, setShowSyntheticDataPanel] = React.useState(false);
+  const [showSyntheticDataPanel, setShowSyntheticDataPanel] = useState(false);
 
   // Auto-load saved scene on startup
   useEffect(() => {
@@ -50,6 +51,8 @@ function App() {
         <PropertiesPanel />
       </div>
       <AnnotationPanel />
+      <ChatInterface />
+      
       {showSyntheticDataPanel && (
         <SyntheticDataPanel />
       )}

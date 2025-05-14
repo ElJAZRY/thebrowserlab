@@ -224,7 +224,7 @@ function createRandomizedScene(
     if (randomizationSettings.position.enabled) {
       const { x, y, z } = randomizationSettings.position.range;
       clone.position.x += (Math.random() - 0.5) * x * 2;
-      clone.position.y += Math.max(0, clone.position.y + (Math.random() - 0.5) * y * 2);
+      clone.position.y = Math.max(0, clone.position.y + (Math.random() - 0.5) * y * 2);
       clone.position.z += (Math.random() - 0.5) * z * 2;
     }
     
