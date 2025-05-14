@@ -5,7 +5,7 @@ import { useAnnotationStore } from '../store/annotationStore';
 import { 
   Camera, Database, Layers, Shuffle, Box, Sun, Image, 
   Grid, Download, Play, Pause, Settings, ChevronDown, ChevronRight,
-  Tag, Sliders, Aperture, Repeat, Cpu, Plus as PlusIcon, X, Minus
+  Tag, Sliders, Aperture, Repeat, Cpu, Plus, X, Minus
 } from 'lucide-react';
 import * as THREE from 'three';
 import { generateSyntheticData } from '../utils/syntheticData/generators';
@@ -750,7 +750,7 @@ export function SyntheticDataPanel() {
               onClick={handleAddCameraPosition}
               className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded"
             >
-              <PlusIcon className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Add Camera Position</span>
             </button>
           </div>
