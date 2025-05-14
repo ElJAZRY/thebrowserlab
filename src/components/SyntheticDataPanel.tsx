@@ -108,7 +108,10 @@ export function SyntheticDataPanel() {
   const objects = useEditorStore((state) => state.objects);
   const annotationClasses = useAnnotationStore((state) => state.annotationClasses);
   const objectAnnotations = useAnnotationStore((state) => state.objectAnnotations);
+  const setObjectAnnotation = useAnnotationStore((state) => state.setObjectAnnotation);
+  const addAnnotationClass = useAnnotationStore((state) => state.addAnnotationClass);
   const updateTransform = useEditorStore((state) => state.updateTransform);
+  const selectedObject = useEditorStore((state) => state.selectedObject);
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -156,6 +159,11 @@ export function SyntheticDataPanel() {
     includeBoundingBoxes: true,
     includeKeypoints: false
   });
+
+  // For annotation functionality
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassColor, setNewClassColor] = useState('#3b82f6');
+  const [isAddingClass, setIsAddingClass] = useState(false);
 
   // Store original object transforms for restoration
   const [originalTransforms, setOriginalTransforms] = useState<Map<string, {
@@ -542,4 +550,598 @@ export function SyntheticDataPanel() {
       categories
     };
   };
+
+  const handleAddClass = () => {
+    if (!newClassName.trim()) return;
+    
+    addAnnotationClass({
+      id: crypto.randomUUID(),
+      name: newClassName.trim(),
+      color: newClassColor
+    });
+    
+    setNewClassName('');
+    setNewClassColor('#3b82f6');
+    setIsAddingClass(false);
+  };
+
+  const handleAddCameraPosition = () => {
+    const newPositions = [...cameraSettings.positions];
+    newPositions.push({ x: 5, y: 5, z: 5 });
+    setCameraSettings({ ...cameraSettings, positions: newPositions });
+  };
+  
+  const handleRemoveCameraPosition = (index: number) => {
+    const newPositions = [...cameraSettings.positions];
+    newPositions.splice(index, 1);
+    setCameraSettings({ ...cameraSettings, positions: newPositions });
+  };
+  
+  const handleUpdateCameraPosition = (index: number, axis: 'x' | 'y' | 'z', value: number) => {
+    const newPositions = [...cameraSettings.positions];
+    newPositions[index] = { ...newPositions[index], [axis]: value };
+    setCameraSettings({ ...cameraSettings, positions: newPositions });
+  };
+
+  const handleExport = () => {
+    // This would be implemented to export the data
+    alert('Export functionality would be implemented here');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-3 mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Cpu className="w-4 h-4 text-blue-400" />
+          <h3 className="text-sm font-medium text-blue-300">Synthetic Data Generator</h3>
+        </div>
+        <p className="text-xs text-gray-400 mb-2">
+          Generate synthetic data for machine learning by randomizing scene objects and capturing from multiple camera angles.
+        </p>
+      </div>
+      
+      {/* Annotation Section */}
+      <Section title="Annotations" icon={<Tag className="w-3.5 h-3.5" />} defaultOpen={true}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-medium text-gray-300">Annotation Classes</h4>
+            <span className="text-xs text-gray-500">{annotationClasses.length} classes</span>
+          </div>
+          
+          <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+            {annotationClasses.map((classItem) => (
+              <div 
+                key={classItem.id}
+                className={cn(
+                  "flex items-center justify-between p-2 rounded",
+                  "bg-gray-800/50 border border-gray-700/50",
+                  "hover:border-gray-600/50 transition-colors"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-3.5 h-3.5 rounded-full" 
+                    style={{ backgroundColor: classItem.color }}
+                  />
+                  <span className="text-gray-300">{classItem.name}</span>
+                </div>
+              </div>
+            ))}
+            
+            {annotationClasses.length === 0 && !isAddingClass && (
+              <div className="text-center py-4 text-gray-500">
+                No annotation classes defined
+              </div>
+            )}
+          </div>
+          
+          {/* Add Class Form */}
+          {isAddingClass ? (
+            <div className="flex items-center gap-2 p-2 bg-gray-800/50 border border-gray-700/50 rounded">
+              <input
+                type="color"
+                value={newClassColor}
+                onChange={(e) => setNewClassColor(e.target.value)}
+                className="w-5 h-5 rounded cursor-pointer"
+              />
+              <input
+                type="text"
+                value={newClassName}
+                onChange={(e) => setNewClassName(e.target.value)}
+                placeholder="Class name"
+                className="flex-1 bg-gray-700/50 border border-gray-600/50 rounded px-2 py-1 text-xs text-gray-200"
+                autoFocus
+              />
+              <div className="flex items-center">
+                <button
+                  onClick={handleAddClass}
+                  className="p-1 hover:bg-gray-700/50 rounded text-green-400"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setIsAddingClass(false)}
+                  className="p-1 hover:bg-gray-700/50 rounded text-gray-400"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAddingClass(true)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-md text-xs text-blue-300 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Class</span>
+            </button>
+          )}
+          
+          {/* Object Annotation */}
+          {selectedObject && (
+            <div className="mt-4 space-y-2">
+              <h4 className="text-xs font-medium text-gray-300">Annotate Selected Object</h4>
+              <div className="text-xs text-gray-400 mb-2">
+                Selected: {selectedObject ? useEditorStore.getState().getObjectName(selectedObject) : 'None'}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-2">
+                {annotationClasses.map((classItem) => (
+                  <button
+                    key={classItem.id}
+                    onClick={() => setObjectAnnotation(selectedObject.uuid, classItem.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1.5 rounded text-xs",
+                      "border transition-colors",
+                      objectAnnotations[selectedObject.uuid]?.classId === classItem.id
+                        ? "bg-blue-500/20 border-blue-500/30 text-blue-300"
+                        : "bg-gray-800/40 border-gray-700/50 hover:bg-gray-700/40 text-gray-300"
+                    )}
+                  >
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: classItem.color }}
+                    />
+                    <span>{classItem.name}</span>
+                  </button>
+                ))}
+              </div>
+              
+              {annotationClasses.length === 0 && (
+                <div className="text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded p-2">
+                  Please add at least one annotation class above
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="pt-2">
+            <div className="text-xs text-gray-400 mb-2">
+              Annotated objects: {annotatedObjectsCount} / {totalObjectsCount}
+            </div>
+            {annotatedObjectsCount === 0 && (
+              <div className="text-xs text-yellow-400 bg-yellow-500/10 border border-yellow-500/20 rounded p-2">
+                Please annotate at least one object before generating data
+              </div>
+            )}
+          </div>
+        </div>
+      </Section>
+      
+      {/* Randomization Settings */}
+      <Section title="Randomization" icon={<Shuffle className="w-3.5 h-3.5" />} defaultOpen={true}>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-medium text-gray-300 flex items-center gap-1.5">
+              <Repeat className="w-3.5 h-3.5 text-gray-500" />
+              <span>Randomization</span>
+            </h4>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={randomizationSettings.enabled}
+                onChange={(e) => setRandomizationSettings({ ...randomizationSettings, enabled: e.target.checked })}
+                className="rounded border-gray-700 checked:bg-blue-500 checked:border-blue-600"
+              />
+              <span className="text-xs text-gray-400">Enabled</span>
+            </label>
+          </div>
+          
+          <div className={cn("space-y-3", !randomizationSettings.enabled && "opacity-50 pointer-events-none")}>
+            {/* Position Randomization */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-gray-400">Position Variation</label>
+                <input
+                  type="checkbox"
+                  checked={randomizationSettings.position.enabled}
+                  onChange={(e) => setRandomizationSettings({ 
+                    ...randomizationSettings, 
+                    position: { ...randomizationSettings.position, enabled: e.target.checked } 
+                  })}
+                  className="rounded border-gray-700 checked:bg-blue-500 checked:border-blue-600"
+                />
+              </div>
+              
+              <div className={cn("grid grid-cols-3 gap-2", !randomizationSettings.position.enabled && "opacity-50 pointer-events-none")}>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">X Range</label>
+                  <input
+                    type="number"
+                    value={randomizationSettings.position.range.x}
+                    onChange={(e) => setRandomizationSettings({
+                      ...randomizationSettings,
+                      position: {
+                        ...randomizationSettings.position,
+                        range: { ...randomizationSettings.position.range, x: parseFloat(e.target.value) }
+                      }
+                    })}
+                    step={0.1}
+                    min={0}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Y Range</label>
+                  <input
+                    type="number"
+                    value={randomizationSettings.position.range.y}
+                    onChange={(e) => setRandomizationSettings({
+                      ...randomizationSettings,
+                      position: {
+                        ...randomizationSettings.position,
+                        range: { ...randomizationSettings.position.range, y: parseFloat(e.target.value) }
+                      }
+                    })}
+                    step={0.1}
+                    min={0}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Z Range</label>
+                  <input
+                    type="number"
+                    value={randomizationSettings.position.range.z}
+                    onChange={(e) => setRandomizationSettings({
+                      ...randomizationSettings,
+                      position: {
+                        ...randomizationSettings.position,
+                        range: { ...randomizationSettings.position.range, z: parseFloat(e.target.value) }
+                      }
+                    })}
+                    step={0.1}
+                    min={0}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Rotation Randomization */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-gray-400">Rotation Variation</label>
+                <input
+                  type="checkbox"
+                  checked={randomizationSettings.rotation.enabled}
+                  onChange={(e) => setRandomizationSettings({ 
+                    ...randomizationSettings, 
+                    rotation: { ...randomizationSettings.rotation, enabled: e.target.checked } 
+                  })}
+                  className="rounded border-gray-700 checked:bg-blue-500 checked:border-blue-600"
+                />
+              </div>
+              
+              <div className={cn("grid grid-cols-3 gap-2", !randomizationSettings.rotation.enabled && "opacity-50 pointer-events-none")}>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">X Range (°)</label>
+                  <input
+                    type="number"
+                    value={randomizationSettings.rotation.range.x}
+                    onChange={(e) => setRandomizationSettings({
+                      ...randomizationSettings,
+                      rotation: {
+                        ...randomizationSettings.rotation,
+                        range: { ...randomizationSettings.rotation.range, x: parseFloat(e.target.value) }
+                      }
+                    })}
+                    step={5}
+                    min={0}
+                    max={180}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Y Range (°)</label>
+                  <input
+                    type="number"
+                    value={randomizationSettings.rotation.range.y}
+                    onChange={(e) => setRandomizationSettings({
+                      ...randomizationSettings,
+                      rotation: {
+                        ...randomizationSettings.rotation,
+                        range: { ...randomizationSettings.rotation.range, y: parseFloat(e.target.value) }
+                      }
+                    })}
+                    step={5}
+                    min={0}
+                    max={180}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Z Range (°)</label>
+                  <input
+                    type="number"
+                    value={randomizationSettings.rotation.range.z}
+                    onChange={(e) => setRandomizationSettings({
+                      ...randomizationSettings,
+                      rotation: {
+                        ...randomizationSettings.rotation,
+                        range: { ...randomizationSettings.rotation.range, z: parseFloat(e.target.value) }
+                      }
+                    })}
+                    step={5}
+                    min={0}
+                    max={180}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Scale Randomization */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-gray-400">Scale Variation</label>
+                <input
+                  type="checkbox"
+                  checked={randomizationSettings.scale.enabled}
+                  onChange={(e) => setRandomizationSettings({ 
+                    ...randomizationSettings, 
+                    scale: { ...randomizationSettings.scale, enabled: e.target.checked } 
+                  })}
+                  className="rounded border-gray-700 checked:bg-blue-500 checked:border-blue-600"
+                />
+              </div>
+              
+              <div className={cn("space-y-2", !randomizationSettings.scale.enabled && "opacity-50 pointer-events-none")}>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={randomizationSettings.scale.uniform}
+                    onChange={(e) => setRandomizationSettings({
+                      ...randomizationSettings,
+                      scale: { ...randomizationSettings.scale, uniform: e.target.checked }
+                    })}
+                    className="rounded border-gray-700 checked:bg-blue-500 checked:border-blue-600"
+                  />
+                  <span className="text-xs text-gray-400">Uniform Scaling</span>
+                </label>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Min Scale</label>
+                    <input
+                      type="number"
+                      value={randomizationSettings.scale.range.min}
+                      onChange={(e) => setRandomizationSettings({
+                        ...randomizationSettings,
+                        scale: {
+                          ...randomizationSettings.scale,
+                          range: { ...randomizationSettings.scale.range, min: parseFloat(e.target.value) }
+                        }
+                      })}
+                      step={0.1}
+                      min={0.1}
+                      max={2}
+                      className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Max Scale</label>
+                    <input
+                      type="number"
+                      value={randomizationSettings.scale.range.max}
+                      onChange={(e) => setRandomizationSettings({
+                        ...randomizationSettings,
+                        scale: {
+                          ...randomizationSettings.scale,
+                          range: { ...randomizationSettings.scale.range, max: parseFloat(e.target.value) }
+                        }
+                      })}
+                      step={0.1}
+                      min={0.1}
+                      max={2}
+                      className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+      
+      {/* Camera Settings */}
+      <Section title="Camera Settings" icon={<Camera className="w-3.5 h-3.5" />} defaultOpen={true}>
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-xs text-gray-400 block">Camera Positions</label>
+            <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1">
+              {cameraSettings.positions.map((pos, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className="grid grid-cols-3 gap-2 flex-1">
+                    <div>
+                      <input
+                        type="number"
+                        value={pos.x}
+                        onChange={(e) => handleUpdateCameraPosition(index, 'x', parseFloat(e.target.value))}
+                        step={0.5}
+                        className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                        placeholder="X"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        value={pos.y}
+                        onChange={(e) => handleUpdateCameraPosition(index, 'y', parseFloat(e.target.value))}
+                        step={0.5}
+                        className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                        placeholder="Y"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="number"
+                        value={pos.z}
+                        onChange={(e) => handleUpdateCameraPosition(index, 'z', parseFloat(e.target.value))}
+                        step={0.5}
+                        className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                        placeholder="Z"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveCameraPosition(index)}
+                    className="p-1 hover:bg-gray-700/50 rounded text-gray-500 hover:text-red-400"
+                    disabled={cameraSettings.positions.length <= 1}
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleAddCameraPosition}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs text-gray-400 hover:text-gray-300 hover:bg-gray-700/50 rounded"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Camera Position</span>
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Resolution Width</label>
+              <input
+                type="number"
+                value={cameraSettings.resolution.width}
+                onChange={(e) => setCameraSettings({
+                  ...cameraSettings,
+                  resolution: { ...cameraSettings.resolution, width: parseInt(e.target.value) }
+                })}
+                step={64}
+                min={256}
+                max={2048}
+                className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Resolution Height</label>
+              <input
+                type="number"
+                value={cameraSettings.resolution.height}
+                onChange={(e) => setCameraSettings({
+                  ...cameraSettings,
+                  resolution: { ...cameraSettings.resolution, height: parseInt(e.target.value) }
+                })}
+                step={64}
+                min={256}
+                max={2048}
+                className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+              />
+            </div>
+          </div>
+        </div>
+      </Section>
+      
+      {/* Generation Settings */}
+      <Section title="Generation Settings" icon={<Settings className="w-3.5 h-3.5" />} defaultOpen={true}>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Number of Samples</label>
+            <input
+              type="number"
+              value={generationSettings.samples}
+              onChange={(e) => setGenerationSettings({ ...generationSettings, samples: parseInt(e.target.value) })}
+              min={1}
+              max={1000}
+              className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+            />
+            <p className="text-[10px] text-gray-500 mt-1">
+              Total images: {generationSettings.samples * cameraSettings.positions.length}
+            </p>
+          </div>
+          
+          <div>
+            <label className="text-xs text-gray-400 block mb-1">Output Format</label>
+            <select
+              value={generationSettings.outputFormat}
+              onChange={(e) => setGenerationSettings({ 
+                ...generationSettings, 
+                outputFormat: e.target.value as 'COCO' | 'PASCAL_VOC' | 'YOLO' 
+              })}
+              className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+            >
+              <option value="COCO">COCO JSON</option>
+              <option value="PASCAL_VOC">PASCAL VOC</option>
+              <option value="YOLO">YOLO</option>
+            </select>
+          </div>
+        </div>
+      </Section>
+      
+      {/* Preview and Generation */}
+      <div className="space-y-3 pt-3 border-t border-gray-700/50">
+        {previewImage && (
+          <div className="relative aspect-square mb-3">
+            <img 
+              src={previewImage} 
+              alt="Preview" 
+              className="w-full h-full object-cover rounded border border-gray-700/50"
+            />
+          </div>
+        )}
+        
+        {isGenerating ? (
+          <div className="space-y-2">
+            <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-center text-gray-400">
+              Generating... {Math.round(progress)}%
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <button
+              onClick={handleRandomizeScene}
+              className="w-full py-2 bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700/50 rounded-md text-sm text-gray-300 transition-colors"
+            >
+              Randomize Scene (Preview)
+            </button>
+            
+            <button
+              onClick={generateSyntheticData}
+              disabled={isGenerating || annotatedObjectsCount === 0}
+              className={cn(
+                "w-full py-2 border rounded-md text-sm transition-colors",
+                annotatedObjectsCount === 0
+                  ? "bg-gray-800/50 border-gray-700/50 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/20 text-blue-300"
+              )}
+            >
+              Generate Synthetic Data
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
