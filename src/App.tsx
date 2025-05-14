@@ -1,4 +1,5 @@
 import React from 'react';
+import { Cpu } from 'lucide-react';
 import Viewport from './components/Viewport';
 import Toolbar from './components/Toolbar/index';
 import PropertiesPanel from './components/PropertiesPanel';
