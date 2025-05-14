@@ -4,7 +4,7 @@ import { cn } from '../utils/cn';
 import { useSyntheticDataStore } from '../store/syntheticDataStore';
 import { useEditorStore } from '../store/editorStore';
 import { useAnnotationStore } from '../store/annotationStore';
-import { exportAsCOCO, exportAsPascalVOC, exportAsYOLO, SyntheticDataImage } from '../utils/syntheticData/exporters';
+import { exportAsCOCO, exportAsPascalVOC, exportAsYOLO, SyntheticDataImage, SyntheticDataAnnotation } from '../utils/syntheticData/exporters';
 import { downloadSyntheticDataZip } from '../utils/syntheticData/zipExport';
 import * as THREE from 'three';
 
@@ -43,9 +43,9 @@ export function SyntheticDataPanel() {
       
       // Get the main scene and renderer
       const scene = (window as any).__THREE_SCENE__;
-      const renderer = (window as any).__THREE_RENDERER__;
+      const mainRenderer = (window as any).__THREE_RENDERER__;
       
-      if (!scene || !renderer) {
+      if (!scene || !mainRenderer) {
         alert('Scene or renderer not found. Please ensure the 3D view is initialized.');
         setIsGenerating(false);
         return;
@@ -58,7 +58,7 @@ export function SyntheticDataPanel() {
         alpha: true
       });
       offscreenRenderer.setSize(config.camera.resolution.width, config.camera.resolution.height);
-      offscreenRenderer.setClearColor(0x000000, 0); // Set clear color with alpha
+      offscreenRenderer.setClearColor(0x000000, 1); // Set clear color with alpha
       offscreenRenderer.shadowMap.enabled = true;
       offscreenRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
       offscreenRenderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -71,10 +71,8 @@ export function SyntheticDataPanel() {
         config.camera.far
       );
       
-      // Clone the scene for each sample
-      const images: SyntheticDataImage[] = [];
-      const totalSamples = config.generation.samples * config.camera.positions.length;
-      let currentSample = 0;
+      // Clone the scene for rendering
+      const clonedScene = scene.clone();
       
       // Store original object transforms
       const originalTransforms = new Map<THREE.Object3D, {
@@ -111,6 +109,10 @@ export function SyntheticDataPanel() {
       });
       
       // Generate samples
+      const images: SyntheticDataImage[] = [];
+      const totalSamples = config.generation.samples * config.camera.positions.length;
+      let currentSample = 0;
+      
       for (let i = 0; i < config.generation.samples; i++) {
         // Randomize objects if enabled
         if (config.randomization.enabled) {
@@ -554,6 +556,89 @@ export function SyntheticDataPanel() {
                   </div>
                 </div>
               </div>
+              
+              {/* Lighting Randomization */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-gray-400">Lighting Variation</label>
+                  <input
+                    type="checkbox"
+                    checked={config.randomization.lighting.enabled}
+                    onChange={(e) => updateRandomization({ 
+                      lighting: { ...config.randomization.lighting, enabled: e.target.checked } 
+                    })}
+                    className="rounded border-gray-700 checked:bg-blue-500 checked:border-blue-600"
+                  />
+                </div>
+                
+                <div className={cn("space-y-2", !config.randomization.lighting.enabled && "opacity-50 pointer-events-none")}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Min Intensity</label>
+                      <input
+                        type="number"
+                        value={config.randomization.lighting.intensityRange.min}
+                        onChange={(e) => updateRandomization({
+                          lighting: {
+                            ...config.randomization.lighting,
+                            intensityRange: { 
+                              ...config.randomization.lighting.intensityRange, 
+                              min: parseFloat(e.target.value) 
+                            }
+                          }
+                        })}
+                        step={0.1}
+                        min={0.1}
+                        max={2}
+                        className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-gray-500 block mb-1">Max Intensity</label>
+                      <input
+                        type="number"
+                        value={config.randomization.lighting.intensityRange.max}
+                        onChange={(e) => updateRandomization({
+                          lighting: {
+                            ...config.randomization.lighting,
+                            intensityRange: { 
+                              ...config.randomization.lighting.intensityRange, 
+                              max: parseFloat(e.target.value) 
+                            }
+                          }
+                        })}
+                        step={0.1}
+                        min={0.1}
+                        max={2}
+                        className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-[10px] text-gray-500 block mb-1">Color Variation</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="0.5"
+                      step="0.01"
+                      value={config.randomization.lighting.colorVariation}
+                      onChange={(e) => updateRandomization({
+                        lighting: {
+                          ...config.randomization.lighting,
+                          colorVariation: parseFloat(e.target.value)
+                        }
+                      })}
+                      className="w-full h-1.5 mt-1"
+                    />
+                    <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                      <span>None</span>
+                      <span>{config.randomization.lighting.colorVariation.toFixed(2)}</span>
+                      <span>High</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -677,7 +762,7 @@ export function SyntheticDataPanel() {
                   value={config.generation.samples}
                   onChange={(e) => updateGeneration({ samples: parseInt(e.target.value) })}
                   min={1}
-                  max={1000}
+                  max={100}
                   className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
                 />
                 <p className="text-[10px] text-gray-500 mt-1">
@@ -794,7 +879,7 @@ function generateAnnotationsForImage(
   camera: THREE.Camera,
   renderer: THREE.WebGLRenderer,
   objectAnnotations: Record<string, { classId: string }>,
-  annotationClasses: AnnotationClass[]
+  annotationClasses: any[]
 ): SyntheticDataAnnotation[] {
   const annotations: SyntheticDataAnnotation[] = [];
   

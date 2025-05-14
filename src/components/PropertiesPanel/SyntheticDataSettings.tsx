@@ -4,7 +4,6 @@ import { useEditorStore } from '../../store/editorStore';
 import { useAnnotationStore } from '../../store/annotationStore';
 import { cn } from '../../utils/cn';
 import { Camera, Cpu, Download, Plus, Minus, RefreshCw, Settings, Sliders } from 'lucide-react';
-import { generateSyntheticData } from '../../utils/syntheticData/generators';
 import { exportAsCOCO, exportAsPascalVOC, exportAsYOLO } from '../../utils/syntheticData/exporters';
 import { downloadSyntheticDataZip } from '../../utils/syntheticData/zipExport';
 
@@ -24,75 +23,9 @@ export function SyntheticDataSettings() {
   const [generatedImages, setGeneratedImages] = useState<any[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  const handleGenerate = async () => {
-    if (isGenerating) return;
-    
-    try {
-      setIsGenerating(true);
-      setProgress(0);
-      setPreviewImage(null);
-      setGeneratedImages([]);
-      
-      // Check if we have annotated objects
-      const annotatedObjects = objects.filter(obj => objectAnnotations[obj.uuid]);
-      if (annotatedObjects.length === 0) {
-        alert('No annotated objects found. Please annotate objects before generating synthetic data.');
-        setIsGenerating(false);
-        return;
-      }
-      
-      // Generate synthetic data
-      const images = await generateSyntheticData(
-        objects,
-        annotationClasses,
-        objectAnnotations,
-        config.randomization,
-        config.camera,
-        config.generation.samples,
-        (progress) => setProgress(progress),
-        (imageUrl) => setPreviewImage(imageUrl)
-      );
-      
-      setGeneratedImages(images);
-      
-    } catch (error) {
-      console.error('Error generating synthetic data:', error);
-      alert('Error generating synthetic data: ' + (error.message || 'Unknown error'));
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-  
-  const handleDownload = async () => {
-    if (generatedImages.length === 0) return;
-    
-    try {
-      // Export annotations based on selected format
-      let annotationsJson;
-      switch (config.generation.outputFormat) {
-        case 'COCO':
-          annotationsJson = exportAsCOCO(generatedImages, annotationClasses);
-          break;
-        case 'PASCAL_VOC':
-          annotationsJson = exportAsPascalVOC(generatedImages, annotationClasses);
-          break;
-        case 'YOLO':
-          annotationsJson = exportAsYOLO(generatedImages, annotationClasses);
-          break;
-      }
-      
-      // Download as zip
-      await downloadSyntheticDataZip(
-        generatedImages, 
-        annotationsJson, 
-        `synthetic_data_${new Date().toISOString().slice(0, 10)}.zip`
-      );
-      
-    } catch (error) {
-      console.error('Error downloading synthetic data:', error);
-      alert('Error downloading synthetic data: ' + (error.message || 'Unknown error'));
-    }
-  };
+  // Check if we have annotated objects
+  const annotatedObjectsCount = Object.keys(objectAnnotations).length;
+  const hasAnnotatedObjects = annotatedObjectsCount > 0;
   
   const handleAddCameraPosition = () => {
     const newPositions = [...config.camera.positions];
@@ -122,6 +55,12 @@ export function SyntheticDataSettings() {
         <p className="text-xs text-gray-400 mb-2">
           Generate synthetic data for machine learning by randomizing scene objects and capturing from multiple camera angles.
         </p>
+        
+        {!hasAnnotatedObjects && (
+          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-md p-2 mt-2 text-xs text-yellow-300">
+            No annotated objects found. Please annotate objects before generating synthetic data.
+          </div>
+        )}
       </div>
       
       {/* Randomization Settings */}
@@ -343,6 +282,89 @@ export function SyntheticDataSettings() {
               </div>
             </div>
           </div>
+          
+          {/* Lighting Randomization */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-gray-400">Lighting Variation</label>
+              <input
+                type="checkbox"
+                checked={config.randomization.lighting.enabled}
+                onChange={(e) => updateRandomization({ 
+                  lighting: { ...config.randomization.lighting, enabled: e.target.checked } 
+                })}
+                className="rounded border-gray-700 checked:bg-blue-500 checked:border-blue-600"
+              />
+            </div>
+            
+            <div className={cn("space-y-2", !config.randomization.lighting.enabled && "opacity-50 pointer-events-none")}>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Min Intensity</label>
+                  <input
+                    type="number"
+                    value={config.randomization.lighting.intensityRange.min}
+                    onChange={(e) => updateRandomization({
+                      lighting: {
+                        ...config.randomization.lighting,
+                        intensityRange: { 
+                          ...config.randomization.lighting.intensityRange, 
+                          min: parseFloat(e.target.value) 
+                        }
+                      }
+                    })}
+                    step={0.1}
+                    min={0.1}
+                    max={2}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 block mb-1">Max Intensity</label>
+                  <input
+                    type="number"
+                    value={config.randomization.lighting.intensityRange.max}
+                    onChange={(e) => updateRandomization({
+                      lighting: {
+                        ...config.randomization.lighting,
+                        intensityRange: { 
+                          ...config.randomization.lighting.intensityRange, 
+                          max: parseFloat(e.target.value) 
+                        }
+                      }
+                    })}
+                    step={0.1}
+                    min={0.1}
+                    max={2}
+                    className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-[10px] text-gray-500 block mb-1">Color Variation</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="0.5"
+                  step="0.01"
+                  value={config.randomization.lighting.colorVariation}
+                  onChange={(e) => updateRandomization({
+                    lighting: {
+                      ...config.randomization.lighting,
+                      colorVariation: parseFloat(e.target.value)
+                    }
+                  })}
+                  className="w-full h-1.5 mt-1"
+                />
+                <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                  <span>None</span>
+                  <span>{config.randomization.lighting.colorVariation.toFixed(2)}</span>
+                  <span>High</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -466,7 +488,7 @@ export function SyntheticDataSettings() {
               value={config.generation.samples}
               onChange={(e) => updateGeneration({ samples: parseInt(e.target.value) })}
               min={1}
-              max={1000}
+              max={100}
               className="w-full py-1 px-2 bg-gray-800/40 border border-gray-700/50 rounded text-xs text-gray-200"
             />
             <p className="text-[10px] text-gray-500 mt-1">
@@ -525,50 +547,29 @@ export function SyntheticDataSettings() {
         </div>
       </div>
       
-      {/* Preview and Generation */}
-      <div className="space-y-3 pt-3 border-t border-gray-700/50">
-        {previewImage && (
-          <div className="relative aspect-square mb-3">
-            <img 
-              src={previewImage} 
-              alt="Preview" 
-              className="w-full h-full object-cover rounded border border-gray-700/50"
-            />
-          </div>
-        )}
+      {/* Generate Button */}
+      <div className="pt-3 border-t border-gray-700/50">
+        <button
+          onClick={() => {
+            // Open the full panel
+            const toggleButton = document.querySelector('button[class*="bottom-20 right-3"]') as HTMLButtonElement;
+            if (toggleButton) toggleButton.click();
+          }}
+          disabled={!hasAnnotatedObjects}
+          className={cn(
+            "w-full py-2 rounded-md text-sm transition-colors",
+            hasAnnotatedObjects 
+              ? "bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/20 text-blue-300" 
+              : "bg-gray-700/20 border border-gray-700/20 text-gray-500 cursor-not-allowed"
+          )}
+        >
+          Open Synthetic Data Generator
+        </button>
         
-        {isGenerating ? (
-          <div className="space-y-2">
-            <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-500 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-xs text-center text-gray-400">
-              Generating... {Math.round(progress)}%
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/20 rounded-md text-sm text-blue-300 transition-colors"
-            >
-              Generate Synthetic Data
-            </button>
-            
-            {generatedImages.length > 0 && (
-              <button
-                onClick={handleDownload}
-                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/20 rounded-md text-sm text-green-300 transition-colors flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Data ({generatedImages.length} images)</span>
-              </button>
-            )}
-          </div>
+        {!hasAnnotatedObjects && (
+          <p className="text-xs text-yellow-300 mt-2 text-center">
+            Please annotate objects first
+          </p>
         )}
       </div>
     </div>
