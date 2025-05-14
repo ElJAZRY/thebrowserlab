@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '../utils/cn';
 import { useEditorStore } from '../store/editorStore';
 import { useAnnotationStore } from '../store/annotationStore';
@@ -108,6 +108,7 @@ export function SyntheticDataPanel() {
   const objects = useEditorStore((state) => state.objects);
   const annotationClasses = useAnnotationStore((state) => state.annotationClasses);
   const objectAnnotations = useAnnotationStore((state) => state.objectAnnotations);
+  const updateTransform = useEditorStore((state) => state.updateTransform);
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -156,93 +157,192 @@ export function SyntheticDataPanel() {
     includeKeypoints: false
   });
 
+  // Store original object transforms for restoration
+  const [originalTransforms, setOriginalTransforms] = useState<Map<string, {
+    position: THREE.Vector3,
+    rotation: THREE.Euler,
+    scale: THREE.Vector3
+  }>>(new Map());
+
+  // Store original light properties
+  const [originalLights, setOriginalLights] = useState<Map<string, {
+    intensity: number,
+    color: THREE.Color
+  }>>(new Map());
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const annotatedObjectsCount = Object.keys(objectAnnotations).length;
   const totalObjectsCount = objects.length;
+
+  // Save original transforms when component mounts
+  useEffect(() => {
+    const transforms = new Map();
+    const lights = new Map();
+    
+    objects.forEach(obj => {
+      if (!obj) return;
+      
+      // Save transform for all objects
+      transforms.set(obj.uuid, {
+        position: obj.position.clone(),
+        rotation: obj.rotation.clone(),
+        scale: obj.scale.clone()
+      });
+      
+      // Save light properties
+      if (obj.userData.isLight && obj instanceof THREE.Light) {
+        lights.set(obj.uuid, {
+          intensity: obj.intensity,
+          color: obj.color.clone()
+        });
+      }
+    });
+    
+    setOriginalTransforms(transforms);
+    setOriginalLights(lights);
+    
+    // Restore original transforms when component unmounts
+    return () => {
+      restoreOriginalScene();
+    };
+  }, [objects]);
+  
+  // Restore original scene transforms
+  const restoreOriginalScene = () => {
+    objects.forEach(obj => {
+      if (!obj) return;
+      
+      // Restore transform
+      const originalTransform = originalTransforms.get(obj.uuid);
+      if (originalTransform) {
+        obj.position.copy(originalTransform.position);
+        obj.rotation.copy(originalTransform.rotation);
+        obj.scale.copy(originalTransform.scale);
+      }
+      
+      // Restore light properties
+      if (obj.userData.isLight && obj instanceof THREE.Light) {
+        const originalLight = originalLights.get(obj.uuid);
+        if (originalLight) {
+          obj.intensity = originalLight.intensity;
+          obj.color.copy(originalLight.color);
+        }
+      }
+    });
+    
+    // Update the scene
+    updateTransform();
+  };
   
   const handleRandomizeScene = () => {
     if (!randomizationSettings.enabled) return;
-    
-    // Clone the current scene for randomization
-    const scene = new THREE.Scene();
     
     // Apply randomization to each object
     objects.forEach(obj => {
       if (!obj) return;
       
-      // Skip lights and cameras
-      if (obj.userData.isLight || obj.userData.isCamera) return;
+      // Skip cameras
+      if (obj.userData.isCamera) return;
       
-      // Create a clone of the object
-      const clone = obj.clone();
-      
-      // Randomize position
-      if (randomizationSettings.position.enabled) {
+      // Randomize position for non-light objects
+      if (!obj.userData.isLight && randomizationSettings.position.enabled) {
         const { x, y, z } = randomizationSettings.position.range;
-        clone.position.x += (Math.random() - 0.5) * x * 2;
-        clone.position.y += (Math.random() - 0.5) * y * 2;
-        clone.position.z += (Math.random() - 0.5) * z * 2;
-      }
-      
-      // Randomize rotation
-      if (randomizationSettings.rotation.enabled) {
-        const { x, y, z } = randomizationSettings.rotation.range;
-        clone.rotation.x += (Math.random() - 0.5) * (x * Math.PI / 180) * 2;
-        clone.rotation.y += (Math.random() - 0.5) * (y * Math.PI / 180) * 2;
-        clone.rotation.z += (Math.random() - 0.5) * (z * Math.PI / 180) * 2;
-      }
-      
-      // Randomize scale
-      if (randomizationSettings.scale.enabled) {
-        const { min, max } = randomizationSettings.scale.range;
-        const scaleFactor = min + Math.random() * (max - min);
+        const originalTransform = originalTransforms.get(obj.uuid);
         
-        if (randomizationSettings.scale.uniform) {
-          clone.scale.set(
-            clone.scale.x * scaleFactor,
-            clone.scale.y * scaleFactor,
-            clone.scale.z * scaleFactor
-          );
-        } else {
-          clone.scale.x *= min + Math.random() * (max - min);
-          clone.scale.y *= min + Math.random() * (max - min);
-          clone.scale.z *= min + Math.random() * (max - min);
+        if (originalTransform) {
+          // Start from original position and apply randomization
+          obj.position.copy(originalTransform.position);
+          obj.position.x += (Math.random() - 0.5) * x * 2;
+          obj.position.y += Math.max(0, (Math.random() - 0.5) * y * 2);
+          obj.position.z += (Math.random() - 0.5) * z * 2;
         }
       }
       
-      scene.add(clone);
-    });
-    
-    // Randomize lighting if enabled
-    if (randomizationSettings.lighting.enabled) {
-      objects.forEach(obj => {
-        if (!obj || !obj.userData.isLight) return;
+      // Randomize rotation for non-light objects (except directional lights)
+      if ((!obj.userData.isLight || obj instanceof THREE.DirectionalLight) && 
+          randomizationSettings.rotation.enabled) {
+        const { x, y, z } = randomizationSettings.rotation.range;
+        const originalTransform = originalTransforms.get(obj.uuid);
         
-        const clone = obj.clone();
+        if (originalTransform) {
+          // Start from original rotation and apply randomization
+          obj.rotation.copy(originalTransform.rotation);
+          obj.rotation.x += (Math.random() - 0.5) * (x * Math.PI / 180) * 2;
+          obj.rotation.y += (Math.random() - 0.5) * (y * Math.PI / 180) * 2;
+          obj.rotation.z += (Math.random() - 0.5) * (z * Math.PI / 180) * 2;
+        }
+      }
+      
+      // Randomize scale for non-light objects
+      if (!obj.userData.isLight && randomizationSettings.scale.enabled) {
+        const { min, max } = randomizationSettings.scale.range;
+        const originalTransform = originalTransforms.get(obj.uuid);
         
-        if (obj instanceof THREE.Light) {
-          const { min, max } = randomizationSettings.lighting.intensityRange;
+        if (originalTransform) {
+          // Start from original scale and apply randomization
+          obj.scale.copy(originalTransform.scale);
+          
+          const scaleFactor = min + Math.random() * (max - min);
+          
+          if (randomizationSettings.scale.uniform) {
+            obj.scale.multiplyScalar(scaleFactor);
+          } else {
+            obj.scale.x *= min + Math.random() * (max - min);
+            obj.scale.y *= min + Math.random() * (max - min);
+            obj.scale.z *= min + Math.random() * (max - min);
+          }
+        }
+      }
+      
+      // Randomize lights
+      if (obj.userData.isLight && obj instanceof THREE.Light && 
+          randomizationSettings.lighting.enabled) {
+        const { min, max } = randomizationSettings.lighting.intensityRange;
+        const originalLight = originalLights.get(obj.uuid);
+        
+        if (originalLight) {
+          // Start from original intensity and apply randomization
           const intensityFactor = min + Math.random() * (max - min);
-          clone.intensity = obj.intensity * intensityFactor;
+          obj.intensity = originalLight.intensity * intensityFactor;
           
           // Randomize color slightly
           const colorVar = randomizationSettings.lighting.colorVariation;
           if (colorVar > 0) {
-            const color = obj.color.clone();
-            color.r += (Math.random() - 0.5) * colorVar * 2;
-            color.g += (Math.random() - 0.5) * colorVar * 2;
-            color.b += (Math.random() - 0.5) * colorVar * 2;
-            clone.color.copy(color);
+            obj.color.copy(originalLight.color);
+            obj.color.r = THREE.MathUtils.clamp(obj.color.r + (Math.random() - 0.5) * colorVar * 2, 0, 1);
+            obj.color.g = THREE.MathUtils.clamp(obj.color.g + (Math.random() - 0.5) * colorVar * 2, 0, 1);
+            obj.color.b = THREE.MathUtils.clamp(obj.color.b + (Math.random() - 0.5) * colorVar * 2, 0, 1);
           }
         }
-        
-        scene.add(clone);
-      });
-    }
+      }
+    });
     
-    // Return the randomized scene
-    return scene;
+    // Update the scene
+    updateTransform();
+    
+    // Capture a preview image
+    capturePreviewImage();
+  };
+  
+  const capturePreviewImage = () => {
+    // Get the canvas from the viewport
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    
+    // Get the renderer, scene, and camera
+    const renderer = (window as any).__THREE_RENDERER__;
+    const scene = (window as any).__THREE_SCENE__;
+    const camera = (window as any).__THREE_CAMERA__;
+    
+    if (!renderer || !scene || !camera) return;
+    
+    // Render the scene
+    renderer.render(scene, camera);
+    
+    // Get the image data
+    const imageDataUrl = canvas.toDataURL('image/png');
+    setPreviewImage(imageDataUrl);
   };
   
   const generateSyntheticData = async () => {
@@ -263,20 +363,13 @@ export function SyntheticDataPanel() {
         cameraSettings.far
       );
       
-      // Create a renderer
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setSize(cameraSettings.resolution.width, cameraSettings.resolution.height);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      
       // Generate the specified number of samples
       const totalSamples = generationSettings.samples;
       const annotations = [];
       
       for (let i = 0; i < totalSamples; i++) {
         // Randomize the scene
-        const randomizedScene = handleRandomizeScene();
-        if (!randomizedScene) continue;
+        handleRandomizeScene();
         
         // For each camera position
         for (let j = 0; j < cameraSettings.positions.length; j++) {
@@ -285,38 +378,47 @@ export function SyntheticDataPanel() {
           camera.lookAt(0, 0, 0);
           
           // Render the scene
-          renderer.render(randomizedScene, camera);
+          const mainRenderer = (window as any).__THREE_RENDERER__;
+          const mainScene = (window as any).__THREE_SCENE__;
           
-          // Get the rendered image
-          const imageDataUrl = renderer.domElement.toDataURL('image/png');
-          
-          // Generate annotations for this image
-          const imageAnnotations = generateAnnotations(randomizedScene, camera, renderer);
-          annotations.push({
-            imageId: `sample_${i}_camera_${j}`,
-            imageUrl: imageDataUrl,
-            annotations: imageAnnotations
-          });
-          
-          // Update progress
-          const currentProgress = ((i * cameraSettings.positions.length + j + 1) / (totalSamples * cameraSettings.positions.length)) * 100;
-          setProgress(currentProgress);
-          
-          // Set preview image (update periodically to avoid too many rerenders)
-          if (i === 0 && j === 0) {
-            setPreviewImage(imageDataUrl);
+          if (mainRenderer && mainScene) {
+            mainRenderer.render(mainScene, camera);
+            
+            // Get the rendered image
+            const canvas = document.querySelector('canvas');
+            if (!canvas) continue;
+            
+            const imageDataUrl = canvas.toDataURL('image/png');
+            
+            // Generate annotations for this image
+            const imageAnnotations = generateAnnotations(mainScene, camera, mainRenderer.domElement.width, mainRenderer.domElement.height);
+            
+            annotations.push({
+              imageId: `sample_${i}_camera_${j}`,
+              imageUrl: imageDataUrl,
+              annotations: imageAnnotations
+            });
+            
+            // Update progress
+            const currentProgress = ((i * cameraSettings.positions.length + j + 1) / (totalSamples * cameraSettings.positions.length)) * 100;
+            setProgress(currentProgress);
+            
+            // Set preview image (update periodically to avoid too many rerenders)
+            if (i === 0 && j === 0) {
+              setPreviewImage(imageDataUrl);
+            }
+            
+            // Allow UI to update by yielding to the event loop
+            await new Promise(resolve => setTimeout(resolve, 0));
           }
-          
-          // Allow UI to update by yielding to the event loop
-          await new Promise(resolve => setTimeout(resolve, 0));
         }
       }
       
       // Export the annotations in the selected format
       exportAnnotations(annotations, generationSettings.outputFormat);
       
-      // Clean up
-      renderer.dispose();
+      // Restore original scene
+      restoreOriginalScene();
       
     } catch (error) {
       console.error('Error generating synthetic data:', error);
@@ -324,10 +426,13 @@ export function SyntheticDataPanel() {
     } finally {
       setIsGenerating(false);
       setProgress(100);
+      
+      // Restore original scene
+      restoreOriginalScene();
     }
   };
   
-  const generateAnnotations = (scene: THREE.Scene, camera: THREE.Camera, renderer: THREE.WebGLRenderer) => {
+  const generateAnnotations = (scene: THREE.Scene, camera: THREE.Camera, width: number, height: number) => {
     const annotations = [];
     
     // Get all annotated objects in the scene
@@ -355,8 +460,8 @@ export function SyntheticDataPanel() {
       const screenCorners = corners.map(corner => {
         const screenPos = corner.clone().project(camera);
         return {
-          x: (screenPos.x * 0.5 + 0.5) * renderer.domElement.width,
-          y: (1 - (screenPos.y * 0.5 + 0.5)) * renderer.domElement.height
+          x: (screenPos.x * 0.5 + 0.5) * width,
+          y: (1 - (screenPos.y * 0.5 + 0.5)) * height
         };
       });
       
@@ -575,7 +680,7 @@ export function SyntheticDataPanel() {
   };
 
   return (
-    <div className="w-[270px] bg-[#252526] border-l border-[#1e1e1e] z-20 flex flex-col h-full">
+    <div className="absolute right-3 top-20 w-[270px] bg-[#252526]/90 backdrop-blur-sm rounded-lg border border-gray-700/50 text-xs z-40">
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-700/50">
         <h2 className="text-sm font-medium text-gray-300">Synthetic Data</h2>
         <div className="flex items-center gap-1">
@@ -603,7 +708,7 @@ export function SyntheticDataPanel() {
         </div>
       </div>
       
-      <div className="p-3 overflow-y-auto overflow-x-hidden thin-scrollbar flex-1">
+      <div className="p-3 overflow-y-auto overflow-x-hidden thin-scrollbar max-h-[calc(100vh-200px)]">
         {/* Status Section */}
         <div className="mb-4 p-3 bg-gray-800/40 rounded-md border border-gray-700/50">
           <div className="flex items-center justify-between mb-2">
@@ -956,11 +1061,33 @@ export function SyntheticDataPanel() {
                 />
               </div>
             </div>
+            
+            {/* Randomize Button */}
+            <button
+              onClick={handleRandomizeScene}
+              disabled={!randomizationSettings.enabled}
+              className={cn(
+                "w-full py-2 rounded text-sm font-medium transition-colors",
+                randomizationSettings.enabled
+                  ? "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/20"
+                  : "bg-gray-700/50 text-gray-500 cursor-not-allowed"
+              )}
+            >
+              Randomize Scene
+            </button>
+            
+            {/* Restore Button */}
+            <button
+              onClick={restoreOriginalScene}
+              className="w-full py-2 rounded text-sm font-medium transition-colors bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 border border-gray-600/20"
+            >
+              Restore Original Scene
+            </button>
           </div>
         </Section>
         
         {/* Camera Settings */}
-        <Section title="Camera Settings" icon={<Camera className="w-4 h-4" />} defaultOpen={true}>
+        <Section title="Camera Settings" icon={<Camera className="w-4 h-4" />} defaultOpen={false}>
           <div className="space-y-3">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -1130,7 +1257,7 @@ export function SyntheticDataPanel() {
         </Section>
         
         {/* Generation Settings */}
-        <Section title="Generation Settings" icon={<Settings className="w-4 h-4" />} defaultOpen={true}>
+        <Section title="Generation Settings" icon={<Settings className="w-4 h-4" />} defaultOpen={false}>
           <div className="space-y-3">
             <div>
               <label className="text-xs text-gray-400 block mb-1">Number of Samples</label>
