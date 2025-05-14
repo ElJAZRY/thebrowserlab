@@ -427,6 +427,47 @@ export function SyntheticDataPanel() {
           )}
         </div>
         
+        {/* Generate Button - Moved to top for easier access */}
+        <div className="mb-4">
+          <button
+            onClick={generateSyntheticDataHandler}
+            disabled={annotatedObjectsCount === 0 || isGenerating}
+            className={cn(
+              "w-full py-2.5 border rounded-md text-sm transition-colors flex items-center justify-center gap-2",
+              annotatedObjectsCount > 0 && !isGenerating
+                ? "bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/20 text-blue-300"
+                : "bg-gray-700/50 border-gray-700/50 text-gray-500 cursor-not-allowed"
+            )}
+          >
+            {isGenerating ? (
+              <>
+                <div className="w-4 h-4 border-2 border-t-transparent border-blue-300 rounded-full animate-spin" />
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4" />
+                <span>Generate Data</span>
+              </>
+            )}
+          </button>
+        </div>
+        
+        {/* Progress Bar (when generating) */}
+        {isGenerating && (
+          <div className="mb-4 space-y-2">
+            <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-center text-gray-400">
+              {Math.round(progress)}% complete
+            </p>
+          </div>
+        )}
+        
         {/* Preview Image */}
         {previewImage && (
           <div className="mb-4">
@@ -517,6 +558,15 @@ export function SyntheticDataPanel() {
               <div className="w-9 h-5 bg-gray-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-300 after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500/50"></div>
             </label>
           </div>
+          
+          {/* Randomize Scene Button */}
+          <button
+            onClick={handleRandomizeScene}
+            className="w-full py-2 bg-gray-700/50 hover:bg-gray-600/50 border border-gray-600/30 rounded-md text-sm text-gray-300 transition-colors flex items-center justify-center gap-2"
+          >
+            <Shuffle className="w-4 h-4" />
+            <span>Randomize Scene</span>
+          </button>
           
           {/* Camera Positions */}
           <div>
@@ -839,50 +889,14 @@ export function SyntheticDataPanel() {
       
       {/* Footer with Action Buttons */}
       <div className="p-3 border-t border-gray-700/50">
-        {isGenerating ? (
-          <div className="space-y-2">
-            <div className="h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-500 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-xs text-center text-gray-400">
-              Generating... {Math.round(progress)}%
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <button
-              onClick={handleRandomizeScene}
-              className="w-full py-2 bg-gray-700/50 hover:bg-gray-600/50 border border-gray-600/30 rounded-md text-sm text-gray-300 transition-colors"
-            >
-              Randomize Scene
-            </button>
-            
-            <button
-              onClick={generateSyntheticDataHandler}
-              disabled={annotatedObjectsCount === 0}
-              className={cn(
-                "w-full py-2 border rounded-md text-sm transition-colors",
-                annotatedObjectsCount > 0
-                  ? "bg-blue-500/20 hover:bg-blue-500/30 border-blue-500/20 text-blue-300"
-                  : "bg-gray-700/50 border-gray-700/50 text-gray-500 cursor-not-allowed"
-              )}
-            >
-              Generate Data
-            </button>
-            
-            {generatedImages.length > 0 && (
-              <button
-                onClick={handleDownload}
-                className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/20 rounded-md text-sm text-green-300 transition-colors flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download ({generatedImages.length} images)</span>
-              </button>
-            )}
-          </div>
+        {generatedImages.length > 0 && (
+          <button
+            onClick={handleDownload}
+            className="w-full py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/20 rounded-md text-sm text-green-300 transition-colors flex items-center justify-center gap-2"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download ({generatedImages.length} images)</span>
+          </button>
         )}
       </div>
     </div>
