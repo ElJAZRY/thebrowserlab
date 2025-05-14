@@ -1,12 +1,13 @@
 import { useEditorStore } from '../../store/editorStore';
 import { getHDRIUrl } from '../../utils/environment/hdriLoader';
-import { Eye, EyeOff, Film, Settings, Palette, Save, Code, Camera } from 'lucide-react';
+import { Eye, EyeOff, Film, Settings, Palette, Save, Code, Camera, Cpu } from 'lucide-react';
 import { Section } from './Section';
 import { PostProcessingSettings } from './PostProcessingSettings';
 import { CapturePanel } from './CapturePanel';
 import { SavedDataSettings } from './SavedDataSettings';
 import { MaterialAssets } from './MaterialAssets';
 import { ShaderAssets } from './ShaderAssets';
+import { SyntheticDataSettings } from './SyntheticDataSettings';
 
 export default function SceneSettings() {
   const sceneSettings = useEditorStore((state) => state.sceneSettings);
@@ -136,6 +137,10 @@ export default function SceneSettings() {
       
       <Section title="AI Capture" icon={<Camera className="w-4 h-4" />} id="capture">
         <CapturePanel />
+      </Section>
+      
+      <Section title="Synthetic Data" icon={<Cpu className="w-4 h-4" />} id="synthetic-data">
+        <SyntheticDataSettings />
       </Section>
       
       <Section title="Saved Data" icon={<Save className="w-4 h-4" />} id="saved-data">
