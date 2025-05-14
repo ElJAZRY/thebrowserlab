@@ -8,6 +8,7 @@ import { TextButton } from './buttons/TextButton';
 import { ArrayButton } from './buttons/ArrayButton';
 import { ImportButton } from './buttons/ImportButton';
 import { RenderModeButtons } from './buttons/RenderModeButtons';
+import { AnnotationButton } from './buttons/AnnotationButton';
 
 export default function Toolbar() {
   return (
@@ -26,6 +27,7 @@ export default function Toolbar() {
         <div className="h-6 w-px bg-gray-700 mx-2" />
         <ArrayButton />
         <div className="h-6 w-px bg-gray-700 mx-2" />
+        <AnnotationButton />
         </div>
         <div className="flex items-center gap-1">
           <RenderModeButtons />

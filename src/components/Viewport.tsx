@@ -14,6 +14,8 @@ import { ChatInterface } from './ChatInterface';
 import { CameraPreviewPanel } from './CameraPreviewPanel';
 import { CodeHistoryPanel } from './CodeHistoryPanel';
 import { XRButton } from './XRButton';
+import { useAnnotationStore } from '../store/annotationStore';
+import { updateAllVisualizations } from '../utils/annotation/visualization';
 
 const useSelectionState = () => {
   return useEditorStore((state) => ({
@@ -30,6 +32,9 @@ export default function Viewport() {
   const duplicateObject = useEditorStore((state) => state.duplicateObject);
   const removeObject = useEditorStore((state) => state.removeObject);
   const [isARSupported, setIsARSupported] = useState(false);
+  const objects = useEditorStore((state) => state.objects);
+  const objectAnnotations = useAnnotationStore((state) => state.objectAnnotations);
+  const annotationClasses = useAnnotationStore((state) => state.annotationClasses);
 
   useEffect(() => {
     if ('xr' in navigator) {
@@ -38,6 +43,7 @@ export default function Viewport() {
         .catch(err => console.warn('AR support check failed:', err));
     }
   }, []);
+  
   const removeObjects = useEditorStore((state) => state.removeObjects);
   const selectedObject = useEditorStore((state) => state.selectedObject);
   const selectedObjects = useEditorStore((state) => state.selectedObjects);
@@ -48,6 +54,11 @@ export default function Viewport() {
       setContextMenu({ x: e.clientX, y: e.clientY });
     }
   }, [selectedObject]);
+  
+  // Update visualizations when annotations or objects change
+  useEffect(() => {
+    updateAllVisualizations(objects);
+  }, [objects, objectAnnotations, annotationClasses]);
   
   return (
     <div className="flex-1 relative" onContextMenu={handleContextMenu}>

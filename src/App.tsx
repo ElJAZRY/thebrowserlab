@@ -7,8 +7,9 @@ import SceneHierarchy from './components/SceneHierarchy';
 import Timeline from './components/Timeline';
 import { useEffect } from 'react';
 import { useEditorStore } from './store/editorStore';
-import { CodePanel } from './components/CodePanel';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
+import { CodePanel } from './components/CodePanel';
+import { AnnotationPanel } from './components/AnnotationPanel';
 
 function App() {
   useKeyboardControls();
@@ -45,6 +46,7 @@ function App() {
       <div className="hidden md:block">
         <PropertiesPanel />
       </div>
+      <AnnotationPanel />
     </div>
     </ErrorBoundary>
   );

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Eye, EyeOff, Trash2, ChevronRight, ChevronDown, Lock, Unlock, Box, Square, Lightbulb, Cylinder, Circle, Type } from 'lucide-react';
+import { Eye, EyeOff, Trash2, ChevronRight, ChevronDown, Lock, Unlock, Box, Square, Lightbulb, Cylinder, Circle, Type, Tag } from 'lucide-react';
 import * as THREE from 'three';
 import { useEditorStore } from '../../store/editorStore';
 import { useTransformLock } from '../../hooks/useTransformLock';
 import { cn } from '../../utils/cn';
+import { useAnnotationStore } from '../../store/annotationStore';
 
 interface HierarchyItemProps {
   object: Object3D;
@@ -44,8 +45,16 @@ export function HierarchyItem({
   const setObjectParent = useEditorStore((state) => state.setObjectParent);
   const getObjectChildren = useEditorStore((state) => state.getObjectChildren);
   const { toggleLock } = useTransformLock();
+  const objectAnnotations = useAnnotationStore((state) => state.objectAnnotations);
+  const annotationClasses = useAnnotationStore((state) => state.annotationClasses);
 
   const children = Array.from(getObjectChildren(object));
+  
+  // Get annotation for this object
+  const annotation = objectAnnotations[object.uuid];
+  const annotationClass = annotation 
+    ? annotationClasses.find(c => c.id === annotation.classId) 
+    : null;
 
   const handleDragStart = (e: React.DragEvent) => {
     e.stopPropagation();
@@ -263,12 +272,21 @@ export function HierarchyItem({
               />
             </form>
           ) : (
-            <span className="text-[13px] font-medium text-gray-300 truncate">
+            <span className="text-[13px] font-medium text-gray-300 truncate flex items-center gap-1.5">
               {object.userData.isLight 
                 ? object.userData.objectType.replace(' Light', '')
                 : object.userData.isCamera
                   ? 'Camera'
                   : getObjectName(object)}
+              
+              {/* Show annotation indicator */}
+              {annotationClass && (
+                <div 
+                  className="w-2.5 h-2.5 rounded-full" 
+                  style={{ backgroundColor: annotationClass.color }}
+                  title={`Annotated as: ${annotationClass.name}`}
+                />
+              )}
             </span>
           )}
         </span>
